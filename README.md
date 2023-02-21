@@ -1,0 +1,13 @@
+This example created by GenAI Partners https://genaipartners.com/
+
+Work with us to create a similar service for your business
+
+# ServiceBot
+This example shows how to combine a few tools (Flask, OpenAI, Twilio and Ngrok) to create a working SMS Bot that can answer questions about a custom knowledge set
+For this example we use a few pages on Little Greek Fresh Grill https://littlegreekfreshgrill.com/ to show how a restaurant chain could create a helpful personality rich chatbot
+
+#Twilio Bot Demo
+https://www.twilio.com/blog/build-a-sms-chatbot-with-python-flask-and-twilio
+
+#GPT INdex
+https://gpt-index.readthedocs.io/en/latest/getting_started/starter_example.html
