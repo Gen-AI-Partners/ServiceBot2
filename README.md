@@ -1,4 +1,4 @@
-This example created by GenAI Partners https://genaipartners.com/
+This example created by GenAI Partners (info@genaipartners.com) https://genaipartners.com/
 
 Work with us to create a similar service for your business
 
