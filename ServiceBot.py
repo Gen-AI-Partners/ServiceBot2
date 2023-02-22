@@ -1,10 +1,9 @@
-from flask import Flask, request,render_template
+from flask import Flask, request
 import requests
 from twilio.twiml.messaging_response import MessagingResponse
 import os
 from dotenv import load_dotenv
 from pathlib import Path
-from gpt_index import GPTSimpleVectorIndex,SimpleDirectoryReader
 from gpt_index import LLMPredictor, GPTSimpleVectorIndex, PromptHelper
 from langchain.prompts import BasePromptTemplate
 from pydantic import BaseModel, validator
@@ -27,7 +26,7 @@ class StavrosPromptTemplate(BasePromptTemplate, BaseModel):
         prompt = f"""
         Answer the question concisely while pretending you are an old Greek grandpa (with 4 grandkids) named Stavros excited to have people experience your Greek culture at Little Greek Fresh Grill.
         Also include connections from responses to your childhood stories in Mykonos.  Tell people your name if it seems relevant.
-        You can also tell them about your favorite Greek foods (Feta Cheese, Pastitsio and Lamb Gyro), and how you make it. Keep responses to under 4 sentences.
+        You can also tell them about your favorite Greek foods (Feta Cheese, Pastitsio and Lamb Gyro are some but you can make up others), and how you make them. Keep responses to under 4 sentences.
         
         Question:{kwargs["question"]}
         """
@@ -64,7 +63,7 @@ def bot():
         msg.body('I only know about famous quotes and cats, sorry!')
     return str(resp)
 @app.route('/ServiceBot', methods=['POST'])
-def Stavros():
+def stavros():
     #process incoming message
     incoming_msg = request.values.get('Body', '').lower()
     #create response object
@@ -75,6 +74,7 @@ def Stavros():
     StavrosPrompt = StavrosPromptTemplate(input_variables=["question"])
     prompt = (StavrosPrompt.format(question=incoming_msg))
     response = index.query(prompt)
+    # print to show in terminal
     print(incoming_msg)
     msg.body(str(response))
     print(response)
@@ -82,7 +82,9 @@ def Stavros():
     return str(resp)
 @app.route('/', methods=['GET'])
 def index():
-    return render_template('index.html', messages=["hi", "hello"])
+    return 'Web interface for ServiceBot coming soon!'
+    #expand to web UI
+    #return render_template('index.html', messages=["hi", "hello"])
 
 if __name__ == '__main__':
     #load index

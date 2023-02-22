@@ -32,7 +32,7 @@ def generate_index(pages, max_input_size=4096,num_output=256,max_chunk_overlap=2
     #cohere = Cohere(temperature=.5, k=5)
     #llm_predictor = LLMPredictor(llm=cohere)
     #get_local_auth('CRED.env', 'COHERE_API_KEY')
-    LLMPredictor(llm=Cohere(temperature=.5, k=5))
+    #LLMPredictor(llm=Cohere(temperature=.5, k=5))
 
     # define prompt helper
     prompt_helper = PromptHelper(max_input_size, num_output, max_chunk_overlap)
@@ -49,9 +49,10 @@ def create_index(folder):
     #get_local_auth('CRED.env', 'COHERE_API_KEY')
     # construct index
     index = generate_index(folder)
+    return index
 
 def query_index(prompt):
-    AI_token = get_local_auth('CRED.env', 'OPENAI_API_KEY')
+    get_local_auth('CRED.env', 'OPENAI_API_KEY')
     index = GPTSimpleVectorIndex.load_from_disk('index.json')
     response = index.query(prompt)
     print(response)
