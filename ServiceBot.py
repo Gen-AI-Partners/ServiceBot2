@@ -34,6 +34,8 @@ class StavrosPromptTemplate(BasePromptTemplate, BaseModel):
         #load bio from file bio.txt
         with open('bio.txt', 'r') as file:
             bio = file.read().replace('\n', '')
+
+        history_blob="".join(kwargs["chat_history"])
         # Generate the prompt to be sent to the language model
         prompt = f"""
         The following bio describes who you are:
@@ -41,10 +43,10 @@ class StavrosPromptTemplate(BasePromptTemplate, BaseModel):
         {bio}
         End Bio:
         Also consider the following interaction between you and a human when answering the question below:
-        Chat History:{kwargs["chat_history"]}
+        Chat History:{history_blob}
         Question:{kwargs["question"]}
         
-        Answer the question as Stavros
+        Answer the question as Stavros considering the chat history and bio above:
         """
 
         return prompt
@@ -59,27 +61,43 @@ class StavrosPromptTemplate(BasePromptTemplate, BaseModel):
 app = Flask(__name__)
 responded = False
 
-
-@app.route('/bot', methods=['POST'])
-# out of the box tutorial from Twilio
-@app.route('/ServiceBotNoMem', methods=['POST'])
+@app.route('/ServiceBotNoMem', methods=['GET','POST'])
 def stavros_nomem():
-    incoming_msg = request.values.get('Body', '').lower()
-    #create response object
-    resp = MessagingResponse()
-    msg = resp.message()
-    responded = False
-    #call index to query
-    chat_history=""
-    StavrosPrompt = StavrosPromptTemplate(input_variables=["question","chat_history"])
-    prompt = (StavrosPrompt.format(question=incoming_msg,chat_history=chat_history))
-    response = index.query(prompt)
-    # print to show in terminal
-    print(incoming_msg)
-    msg.body(str(response))
-    print(response)
-    responded = True
-    return str(resp)
+    chat_history = ""
+    if request.method == 'POST':
+        incoming_msg = request.values.get('Body', '').lower()
+        #create response object
+        resp = MessagingResponse()
+        msg = resp.message()
+        responded = False
+        #call index to query
+
+        StavrosPrompt = StavrosPromptTemplate(input_variables=["question","chat_history"])
+        prompt = StavrosPrompt.format(question=incoming_msg,chat_history=chat_history)
+        response = index.query(prompt)
+        # print to show in terminal
+        print(incoming_msg)
+        msg.body(str(response))
+        print(response)
+        responded = True
+        return str(resp)
+    else:
+        static_prompt = "Tell me about yourself?"
+        # create response object
+        input_prompt = request.args.get('prompt')
+        if input_prompt:
+            prompt = input_prompt
+        else:
+            prompt= static_prompt
+        # call index to query
+        StavrosPrompt = StavrosPromptTemplate(input_variables=["question","chat_history"])
+        prompt = StavrosPrompt.format(question=prompt,chat_history=chat_history)
+        response = index.query(prompt)
+        # print to show in terminal
+        print(static_prompt)
+        print(response)
+        responded = True
+        return str(response)
 
 
 
@@ -95,7 +113,7 @@ def stavros():
     # create response object
     resp = MessagingResponse()
     msg = resp.message()
-    chat_history = ""
+
     if responded is not True:
         app.logger.info("First request, initializing agent chain")
         prompt = (StavrosPrompt.format(question=incoming_msg, chat_history=chat_history))
@@ -109,16 +127,26 @@ def stavros():
                 return_direct=True
             ),
         ]
-        memory = ConversationBufferMemory(memory_key="chat_history")
+
         llm = OpenAI(temperature=0.5)
         agent_chain = initialize_agent(tools, llm, agent="conversational-react-description",memory=memory)
         #agent_chain = initialize_agent([], llm=OpenAI(temperature=.5), prompt=prompt,agent="zero-shot-react-description")
     if responded is True:
         app.logger.info("Subsequent Request, updating prompt")
+        app.logger.info(chat_history)
         prompt = (StavrosPrompt.format(question=incoming_msg, chat_history=chat_history))
         app.logger.info(prompt)
-    response = agent_chain.run(input=prompt)
-    app.logger.info(str(agent_chain))
+
+    #promotional code
+    promo = ""
+    #if myconos is in incoming message add promo code
+    if "myconos" in incoming_msg:
+        promo = "\nI love talking about Myconos - Use promo code: myconos20 for 20% off your next online order!"
+
+    response = str(agent_chain.run(input=prompt)) + promo
+    chat_history.append("\nHuman:"+incoming_msg)
+    chat_history.append("\nStavros:" + response)
+    app.logger.info("\nCHAT HISTORY:\n"+str(chat_history))
     msg.body(str(response))
     responded = True
 
@@ -139,6 +167,8 @@ if __name__ == '__main__':
     # load index
     global prompt
     global chat_history
+    global memory
+    memory = ConversationBufferMemory(memory_key="chat_history")
     dotenv_path = Path('CRED.env')
     load_dotenv(dotenv_path=dotenv_path)
     os.getenv('OPENAI_API_KEY')
