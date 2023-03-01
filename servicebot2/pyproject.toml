@@ -6,8 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "servicebot2_package_genaipartners"
 version = "0.0.1"
 authors = [
-  { name="Karl Simon", email="karl@genaipartners.com",
-    name = "Dave Greenfield", email: "dave@genaipartners.com"},
+  { name="Karl Simon", email="karl@genaipartners.com"},
 ]
 description = "An SMS Service Bot Demo - Restaurant"
 readme = "README.md"
