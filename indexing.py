@@ -61,11 +61,13 @@ def query_index(prompt):
 
 def main():
     # Use a breakpoint in the code line below to debug your script.
+    global chat_history
+    chat_history = [""]
     print('hi')  # Press ⌘F8 to toggle the breakpoint.
     create_index('data')
     sms = "What should i get for a healthy dinner?"
-    StavrosPrompt = StavrosPromptTemplate(input_variables=["question"])
-    prompt=(StavrosPrompt.format(question=sms))
+    StavrosPrompt = StavrosPromptTemplate(input_variables=["question", "chat_history"])
+    prompt = (StavrosPrompt.format(question=sms, chat_history=chat_history))
     query_index(prompt)
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
