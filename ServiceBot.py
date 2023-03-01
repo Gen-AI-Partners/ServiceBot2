@@ -14,6 +14,9 @@ from langchain.agents import initialize_agent
 from langchain.agents import ZeroShotAgent, Tool, AgentExecutor
 from langchain.chains.conversation.memory import ConversationBufferMemory
 
+from langchain.chains import ConversationChain
+
+
 
 class StavrosPromptTemplate(BasePromptTemplate, BaseModel):
     """ A custom prompt template that takes in the function name as input, and formats the prompt template to provide the source code of the function. """
@@ -25,46 +28,23 @@ class StavrosPromptTemplate(BasePromptTemplate, BaseModel):
             raise ValueError("question must be an input_variable.")
         return v
 
-    def format(self, **kwargs) -> str:
+    def format(self, **kwargs)->str:
         chat_history = ""
         # Get the source code of the function
-
+        #load bio from file bio.txt
+        with open('bio.txt', 'r') as file:
+            bio = file.read().replace('\n', '')
         # Generate the prompt to be sent to the language model
         prompt = f"""
-        Name: Stavros Kostas
-        Age: 73
-        Height: 5'8"
-        Weight: 175 lbs
-        Myers-Briggs: ESFP
-        Current Location: Mykonos, Greece
-        Interests: Growing Olives, Cooking Greek Food, Playing with my Grandkids, and Traveling
-        Favorite Food: Pastitsio
-        Other favorite foods: Feta Cheese, Lamb Gyro, and Baklava
-        Hobbies: Cooking, Gardening, and Playing with my Grandkids
-
-        Stavros is a fun and outgoing person who loves to share his culture, especially with those in his restaurant little greek fresh grill.
-
-        He values family, fresh food, and a good times with people he cares about and loves making new friends.  When he is talking to people
-        he gives useful information in straight and to the point manner.  He is a very friendly person and is always willing to help.
-
-        Stavros stands for Extraverted Sensing Feeling Perceiving. Stavros personalities are outgoing individuals who enjoy being around other people and having fun together.
-
-        They are charismatic social butterflies with an excellent understanding of others’ feelings, which helps them get along with anybody regardless of background or personality type.
-
-        Stavros tends to notice details most overlook and have also been described as “the charmers,” because it is fairly easy for them to make new connections with people that they’ve just met.
-
-        Stavros is the entertainers of the personality spectrum. They like to be around people and they enjoy having fun.
-
-        They have a knack for being able to get along with just about anyone, regardless of their background or personality type, which makes them good at building social relationships.
-
-        Stavros is generally outgoing and they are drawn to things that will make them happy. They enjoy spontaneity, as long as it’s not too cramped or inconvenient for other people.
-
-        Answer the question below as if you were Stavros, try to keep answers concise, 4-5 sentences or less and don't give too many options:
-
+        The following bio describes who you are:
+        Bio:
+        {bio}
+        End Bio:
+        Also consider the following interaction between you and a human when answering the question below:
         Chat History:{kwargs["chat_history"]}
         Question:{kwargs["question"]}
-        AI:
-
+        
+        Answer the question as Stavros
         """
 
         return prompt
@@ -82,51 +62,64 @@ responded = False
 
 @app.route('/bot', methods=['POST'])
 # out of the box tutorial from Twilio
-def bot():
-    # how to process message
+@app.route('/ServiceBotNoMem', methods=['POST'])
+def stavros_nomem():
     incoming_msg = request.values.get('Body', '').lower()
+    #create response object
     resp = MessagingResponse()
     msg = resp.message()
     responded = False
-    # opentional logic
-    if 'quote' in incoming_msg:
-        # return a quote
-        r = requests.get('https://api.quotable.io/random')
-        if r.status_code == 200:
-            data = r.json()
-            quote = f'{data["content"]} ({data["author"]})'
-        else:
-            quote = 'I could not retrieve a quote at this time, sorry.'
-        msg.body(quote)
-        responded = True
-    if 'cat' in incoming_msg:
-        # return a cat pic
-        msg.media('https://cataas.com/cat')
-        responded = True
-    if not responded:
-        msg.body('I only know about famous quotes and cats, sorry!')
+    #call index to query
+    chat_history=""
+    StavrosPrompt = StavrosPromptTemplate(input_variables=["question","chat_history"])
+    prompt = (StavrosPrompt.format(question=incoming_msg,chat_history=chat_history))
+    response = index.query(prompt)
+    # print to show in terminal
+    print(incoming_msg)
+    msg.body(str(response))
+    print(response)
+    responded = True
     return str(resp)
+
 
 
 @app.route('/ServiceBot', methods=['POST'])
 def stavros():
     global responded
     global agent_chain
-    global prompt
+    global promp
+
     # process incoming message
     incoming_msg = request.values.get('Body', '').lower()
-    chat_history.append(incoming_msg)
 
     # create response object
     resp = MessagingResponse()
-
+    msg = resp.message()
+    chat_history = ""
     if responded is not True:
+        app.logger.info("First request, initializing agent chain")
         prompt = (StavrosPrompt.format(question=incoming_msg, chat_history=chat_history))
-        agent_chain = initialize_agent([], llm=OpenAI(temperature=1.0), prompt=prompt, input="question",
-                                       agent="conversational-react-description", memory=memory)
+        app.logger.info(prompt)
+
+        tools = [
+            Tool(
+                name="GPT Index",
+                func=lambda q: str(index.query(q)),
+                description="useful for when you want to answer questions about the author. The input to this tool should be a complete english sentence.",
+                return_direct=True
+            ),
+        ]
+        memory = ConversationBufferMemory(memory_key="chat_history")
+        llm = OpenAI(temperature=0.5)
+        agent_chain = initialize_agent(tools, llm, agent="conversational-react-description",memory=memory)
+        #agent_chain = initialize_agent([], llm=OpenAI(temperature=.5), prompt=prompt,agent="zero-shot-react-description")
     if responded is True:
+        app.logger.info("Subsequent Request, updating prompt")
         prompt = (StavrosPrompt.format(question=incoming_msg, chat_history=chat_history))
-    resp = agent_chain.run(incoming_msg)
+        app.logger.info(prompt)
+    response = agent_chain.run(input=prompt)
+    app.logger.info(str(agent_chain))
+    msg.body(str(response))
     responded = True
 
     # print to show in terminal
@@ -155,9 +148,7 @@ if __name__ == '__main__':
 
     # index the contex
     index = GPTSimpleVectorIndex.load_from_disk('index.json')
-
-    memory = GPTIndexMemory(index=index, memory_key="chat_history", query_kwargs={"response_mode": "compact"})
-
+    #memory = GPTIndexMemory(index=index, memory_key="chat_history", query_kwargs={"response_mode": "compact"})
     StavrosPrompt = StavrosPromptTemplate(input_variables=["question", "chat_history"])
 
     # run the app
