@@ -46,7 +46,7 @@ class StavrosPromptTemplate(BasePromptTemplate, BaseModel):
         Chat History:{history_blob}
         Question:{kwargs["question"]}
         
-        Answer the question as Stavros considering the chat history and bio above:
+        Answer the question as Stavros considering the chat history and bio above, try to keep the response under 3 sentences:
         """
 
         return prompt
@@ -109,6 +109,12 @@ def stavros():
 
     # process incoming message
     incoming_msg = request.values.get('Body', '').lower()
+    promo = ""
+    #if myconos is in incoming message add promo code
+    #if string contains myconos
+
+    if "myconos" in (incoming_msg):
+        promo = "\nI love talking about Myconos - Use promo code: myconos20 for 20% off your next online order!"
 
     # create response object
     resp = MessagingResponse()
@@ -138,11 +144,8 @@ def stavros():
         app.logger.info(prompt)
 
     #promotional code
-    promo = ""
-    #if myconos is in incoming message add promo code
-    if "myconos" in incoming_msg:
-        promo = "\nI love talking about Myconos - Use promo code: myconos20 for 20% off your next online order!"
 
+    app.logger.info("PROMO:" + promo)
     response = str(agent_chain.run(input=prompt)) + promo
     chat_history.append("\nHuman:"+incoming_msg)
     chat_history.append("\nStavros:" + response)
