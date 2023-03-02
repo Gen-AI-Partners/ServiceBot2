@@ -173,7 +173,7 @@ if __name__ == '__main__':
     global memory
 
     memory = ConversationBufferMemory(memory_key="chat_history")
-    dotenv_path = Path('/Users/ksimon00/.zshrc')
+    dotenv_path = Path('CRED.env')
     load_dotenv(dotenv_path=dotenv_path)
     os.getenv('OPENAI_API_KEY')
 

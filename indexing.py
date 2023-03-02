@@ -45,14 +45,14 @@ def generate_index(pages, max_input_size=4096,num_output=256,max_chunk_overlap=2
 
 def create_index(folder):
      # get embeddings for confluence data
-    get_local_auth('/Users/ksimon00/.zshrc', 'OPENAI_API_KEY')
+    get_local_auth('CRED.env', 'OPENAI_API_KEY')
     #get_local_auth('CRED.env', 'COHERE_API_KEY')
     # construct index
     index = generate_index(folder)
     return index
 
 def query_index(prompt):
-    get_local_auth('/Users/ksimon00/.zshrc', 'OPENAI_API_KEY')
+    get_local_auth('CRED.env', 'OPENAI_API_KEY')
     index = GPTSimpleVectorIndex.load_from_disk('index.json')
     response = index.query(prompt)
     print(response)
