@@ -107,19 +107,19 @@ def stavros():
     global agent_chain
     global promp
 
-    # process incoming message
+    # Process incoming message
     incoming_msg = request.values.get('Body', '').lower()
     promo = ""
-    #if myconos is in incoming message add promo code
-    #if string contains myconos
 
-    if "myconos" in (incoming_msg):
-        promo = "\nI love talking about Myconos - Use promo code: myconos20 for 20% off your next online order!"
+    # If mykonos is in incoming message add promo code
+    if "mykonos" in (incoming_msg):
+        promo = "\nI love talking about Mykonos - Use promo code: mykonos20 for 20% off your next online order!"
 
     # create response object
     resp = MessagingResponse()
     msg = resp.message()
 
+    # First Time Only - ServiceBot chat invoked - create / initialize agent chain
     if responded is not True:
         app.logger.info("First request, initializing agent chain")
         prompt = (StavrosPrompt.format(question=incoming_msg, chat_history=chat_history))
@@ -129,22 +129,22 @@ def stavros():
             Tool(
                 name="GPT Index",
                 func=lambda q: str(index.query(q)),
-                description="useful for when you want to answer questions about the author. The input to this tool should be a complete english sentence.",
+                description="Answer questions about the restaurant using pre-indexed content. The input to this tool should be a complete english sentence.",
                 return_direct=True
             ),
         ]
 
         llm = OpenAI(temperature=0.5)
         agent_chain = initialize_agent(tools, llm, agent="conversational-react-description",memory=memory)
-        #agent_chain = initialize_agent([], llm=OpenAI(temperature=.5), prompt=prompt,agent="zero-shot-react-description")
+
+    # Post-first chat message handling - maintain updates to the prompt to include up-to-date chat history
     if responded is True:
         app.logger.info("Subsequent Request, updating prompt")
         app.logger.info(chat_history)
         prompt = (StavrosPrompt.format(question=incoming_msg, chat_history=chat_history))
         app.logger.info(prompt)
 
-    #promotional code
-
+    # Generate a response based upon current, cumulative interaction between human and bot
     app.logger.info("PROMO:" + promo)
     response = str(agent_chain.run(input=prompt)) + promo
     chat_history.append("\nHuman:"+incoming_msg)
@@ -171,17 +171,19 @@ if __name__ == '__main__':
     global prompt
     global chat_history
     global memory
+
     memory = ConversationBufferMemory(memory_key="chat_history")
-    dotenv_path = Path('CRED.env')
+    dotenv_path = Path('/Users/ksimon00/.zshrc')
     load_dotenv(dotenv_path=dotenv_path)
     os.getenv('OPENAI_API_KEY')
 
     chat_history = [""]
     prompt = ""
 
-    # index the contex
+    # index the context
     index = GPTSimpleVectorIndex.load_from_disk('index.json')
-    #memory = GPTIndexMemory(index=index, memory_key="chat_history", query_kwargs={"response_mode": "compact"})
+
+    # define the prompt, using the predefined template completed with instruction and dyanmic bio information
     StavrosPrompt = StavrosPromptTemplate(input_variables=["question", "chat_history"])
 
     # run the app
