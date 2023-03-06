@@ -17,7 +17,6 @@ from langchain.chains.conversation.memory import ConversationBufferMemory
 from langchain.chains import ConversationChain
 
 
-
 class StavrosPromptTemplate(BasePromptTemplate, BaseModel):
     """ A custom prompt template that takes in the function name as input, and formats the prompt template to provide the source code of the function. """
 
@@ -28,14 +27,14 @@ class StavrosPromptTemplate(BasePromptTemplate, BaseModel):
             raise ValueError("question must be an input_variable.")
         return v
 
-    def format(self, **kwargs)->str:
+    def format(self, **kwargs) -> str:
         chat_history = ""
         # Get the source code of the function
-        #load bio from file bio.txt
+        # load bio from file bio.txt
         with open('bio.txt', 'r') as file:
             bio = file.read().replace('\n', '')
 
-        history_blob="".join(kwargs["chat_history"])
+        history_blob = "".join(kwargs["chat_history"])
         # Generate the prompt to be sent to the language model
         prompt = f"""
         The following bio describes who you are:
@@ -45,7 +44,7 @@ class StavrosPromptTemplate(BasePromptTemplate, BaseModel):
         Also consider the following interaction between you and a human when answering the question below:
         Chat History:{history_blob}
         Question:{kwargs["question"]}
-        
+
         Answer the question as Stavros considering the chat history and bio above, try to keep the response under 3 sentences:
         """
 
@@ -61,19 +60,20 @@ class StavrosPromptTemplate(BasePromptTemplate, BaseModel):
 app = Flask(__name__)
 responded = False
 
-@app.route('/ServiceBotNoMem', methods=['GET','POST'])
+
+@app.route('/ServiceBotNoMem', methods=['GET', 'POST'])
 def stavros_nomem():
     chat_history = ""
     if request.method == 'POST':
         incoming_msg = request.values.get('Body', '').lower()
-        #create response object
+        # create response object
         resp = MessagingResponse()
         msg = resp.message()
         responded = False
-        #call index to query
+        # call index to query
 
-        StavrosPrompt = StavrosPromptTemplate(input_variables=["question","chat_history"])
-        prompt = StavrosPrompt.format(question=incoming_msg,chat_history=chat_history)
+        StavrosPrompt = StavrosPromptTemplate(input_variables=["question", "chat_history"])
+        prompt = StavrosPrompt.format(question=incoming_msg, chat_history=chat_history)
         response = index.query(prompt)
         # print to show in terminal
         print(incoming_msg)
@@ -88,10 +88,10 @@ def stavros_nomem():
         if input_prompt:
             prompt = input_prompt
         else:
-            prompt= static_prompt
+            prompt = static_prompt
         # call index to query
-        StavrosPrompt = StavrosPromptTemplate(input_variables=["question","chat_history"])
-        prompt = StavrosPrompt.format(question=prompt,chat_history=chat_history)
+        StavrosPrompt = StavrosPromptTemplate(input_variables=["question", "chat_history"])
+        prompt = StavrosPrompt.format(question=prompt, chat_history=chat_history)
         response = index.query(prompt)
         # print to show in terminal
         print(static_prompt)
@@ -100,12 +100,11 @@ def stavros_nomem():
         return str(response)
 
 
-
 @app.route('/ServiceBot', methods=['POST'])
 def stavros():
     global responded
     global agent_chain
-    global promp
+    global prompt
 
     # Process incoming message
     incoming_msg = request.values.get('Body', '').lower()
@@ -135,7 +134,8 @@ def stavros():
         ]
 
         llm = OpenAI(temperature=0.5)
-        agent_chain = initialize_agent(tools, llm, agent="conversational-react-description",memory=memory)
+        agent_chain = initialize_agent(tools, llm, agent="conversational-react-description", memory=memory)
+        response = str(agent_chain.run(input=prompt)) + promo
 
     # Post-first chat message handling - maintain updates to the prompt to include up-to-date chat history
     if responded is True:
@@ -143,13 +143,13 @@ def stavros():
         app.logger.info(chat_history)
         prompt = (StavrosPrompt.format(question=incoming_msg, chat_history=chat_history))
         app.logger.info(prompt)
+        response = str(agent_chain.run(input=incoming_msg)) + promo
 
     # Generate a response based upon current, cumulative interaction between human and bot
     app.logger.info("PROMO:" + promo)
-    response = str(agent_chain.run(input=prompt)) + promo
-    chat_history.append("\nHuman:"+incoming_msg)
+    chat_history.append("\nHuman:" + incoming_msg)
     chat_history.append("\nStavros:" + response)
-    app.logger.info("\nCHAT HISTORY:\n"+str(chat_history))
+    app.logger.info("\nCHAT HISTORY:\n" + str(chat_history))
     msg.body(str(response))
     responded = True
 
